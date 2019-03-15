@@ -2,4 +2,6 @@
 set -eoux pipefail
 PID="${HOME}/ni-storage.pid"
 
-./bin/ni-storage & echo $! > "${PID}"
+if [ ! -f "${PID}" ]; then
+    ./bin/ni-storage & echo $! > "${PID}"
+fi

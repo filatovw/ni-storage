@@ -38,3 +38,7 @@ start:
 PHONY:stop
 stop:
 	./scripts/stop.sh
+
+PHONY:test
+test:
+	go test -v -race -bench=. ./...

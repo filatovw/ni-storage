@@ -2,26 +2,20 @@ package engine
 
 import "time"
 
-type state int
-
-const (
-	Presented state = 0
-	Deleted   state = 1
-)
+var Null = Record{}
 
 type Record struct {
 	ExpirationTime *time.Time
-	State          state
 	Value          string
 	Key            string
 }
 
 type Storage interface {
-	Get(string) (*Record, error)
-	GetAll() ([]*Record, error)
-	Set(Record) error
-	Delete(string) error
-	DeleteAll() error
-	SetExpirationTime(string, time.Duration) error
-	Filter(string) ([]*Record, error)
+	Exists(string) bool
+	Get(string) (Record, bool)
+	GetAll() ([]Record, error)
+	Filter(string) ([]Record, error)
+	Set(Record)
+	Delete(string)
+	DeleteAll()
 }
