@@ -5,9 +5,9 @@ import "time"
 var Null = Record{}
 
 type Record struct {
-	ExpirationTime *time.Time
-	Value          string
-	Key            string
+	ExpirationTime *time.Time `json:"expiration_time,omitempty"`
+	Value          string     `json:"value,omitempty"`
+	Key            string     `json:"key"`
 }
 
 type Storage interface {

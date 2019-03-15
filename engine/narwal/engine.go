@@ -1,10 +1,8 @@
 package narwal
 
 import (
-	"io"
+	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -14,45 +12,40 @@ import (
 	"github.com/pkg/errors"
 )
 
-type action int
-
-const (
-	Set    action = 0
-	Delete action = 1
-)
-
-type event struct {
-	record engine.Record
-	action action
-}
-
 type Narwal struct {
 	log  logger.Logger
 	data map[string]engine.Record // in memory data storage
 	lock *sync.RWMutex
-	w    io.WriteCloser // persistent data storage
-	// queue chan event     // internal queue
+	wal  *WAL
+}
+
+type event struct {
+	Record engine.Record `json:"record"`
+	Action action        `json:"action"`
+}
+
+func (e *event) Bytes() []byte {
+	return []byte(fmt.Sprintf("%d::%s", e.Action, e.Record))
 }
 
 func New(path string, log logger.Logger) (*Narwal, error) {
-	path, err := filepath.Abs(path)
+	wal, err := OpenWAL(path, DefaultMaxRecordSize)
 	if err != nil {
-		return nil, errors.Wrap(err, "path is not absolute")
+		return nil, errors.Wrap(err, "open WAL")
 	}
-	if err := os.MkdirAll(path, 0755); err != nil {
-		return nil, errors.Wrap(err, "create directory")
-	}
-
-	w, err := os.OpenFile(filepath.Join(path, "data.wal"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+	snapshot, err := wal.Read()
 	if err != nil {
-		return nil, errors.Wrap(err, "init storage")
+		return nil, err
+	}
+	log.Infof("snapshot: %+v", snapshot)
+	if snapshot == nil {
+		snapshot = make(map[string]engine.Record)
 	}
 	return &Narwal{
 		log:  log,
-		w:    w,
+		wal:  wal,
 		lock: &sync.RWMutex{},
-		data: make(map[string]engine.Record),
-		//	queue: make(chan event)
+		data: snapshot,
 	}, nil
 }
 
@@ -76,24 +69,12 @@ func (s *Narwal) Get(key string) (engine.Record, bool) {
 func (s *Narwal) Set(record engine.Record) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	/*
-		s.queue <- event{
-			record: record,
-			action: Set,
-		}
-	*/
 	s.set(record)
 }
 
 func (s *Narwal) Delete(key string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	/*
-		s.queue <- event{
-			record: engine.Record{Key: key},
-			action: Delete,
-		}
-	*/
 	s.delete(key)
 }
 
@@ -137,9 +118,15 @@ func (s *Narwal) DeleteAll() {
 }
 
 func (s *Narwal) set(record engine.Record) {
+	if err := s.wal.Write(event{Record: record, Action: actionSet}); err != nil {
+		s.log.Error(err)
+	}
 	s.data[record.Key] = record
 }
 
 func (s *Narwal) delete(key string) {
+	if err := s.wal.Write(event{Record: engine.Record{Key: key}, Action: actionDelete}); err != nil {
+		s.log.Error(err)
+	}
 	delete(s.data, key)
 }

@@ -22,3 +22,4 @@ I chose Golang because:
 [ ] tests for narwal storage
 [ ] benchmarks
 [ ] documentation
+[ ] swagger spec
