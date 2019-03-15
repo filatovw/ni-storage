@@ -13,10 +13,12 @@ I chose Golang because:
 
 ## TODO:
 
-- web server with basic handlers
-- `/debug` handler
-- `/metrics` handler
-- engine adapter 
-- simple persistent storage
-- third-party storage (pg/redis/badger)
-- documentate solution
+[ ] WAL append
+[ ] WAL recover -> snapshot recover
+[ ] snapshot writing
+[ ] snapshot reading
+[ ] ttl
+[ ] zap logger middleware
+[ ] tests for narwal storage
+[ ] benchmarks
+[ ] documentation
