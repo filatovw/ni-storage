@@ -23,3 +23,4 @@ I chose Golang because:
 [ ] benchmarks
 [ ] documentation
 [ ] swagger spec
+[ ] graceful shutdown

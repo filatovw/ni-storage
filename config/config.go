@@ -29,8 +29,8 @@ type NarWAL struct {
 }
 
 // Load config from environment and command line
-func Load() Config {
-	c := Config{
+func Load() *Config {
+	c := &Config{
 		HTTPServer: HTTPServer{
 			Host: "0.0.0.0",
 			Port: "8555",
@@ -68,6 +68,7 @@ func (c *Config) loadFromCLI() {
 	flag.IntVar(&port, "port", 0, "api-server port (default: 8500)")
 	flag.StringVar(&dataDir, "data-dir", "./narwal", "path to folder with data")
 	flag.BoolVar(&debug, "debug", false, "debug mode with verbose logging")
+	flag.Parse()
 
 	if host != "" {
 		c.HTTPServer.Host = host

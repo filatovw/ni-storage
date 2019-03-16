@@ -2,7 +2,6 @@ package narwal
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -14,8 +13,8 @@ import (
 
 type Narwal struct {
 	log  logger.Logger
-	data map[string]engine.Record // in memory data storage
 	lock *sync.RWMutex
+	data map[string]engine.Record
 	wal  *WAL
 }
 
@@ -29,7 +28,7 @@ func (e *event) Bytes() []byte {
 }
 
 func New(path string, log logger.Logger) (*Narwal, error) {
-	wal, err := OpenWAL(path, DefaultMaxRecordSize)
+	wal, err := OpenWAL(path, DefaultMaxRecordSize, log)
 	if err != nil {
 		return nil, errors.Wrap(err, "open WAL")
 	}
@@ -37,10 +36,7 @@ func New(path string, log logger.Logger) (*Narwal, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("snapshot: %+v", snapshot)
-	if snapshot == nil {
-		snapshot = make(map[string]engine.Record)
-	}
+
 	return &Narwal{
 		log:  log,
 		wal:  wal,
@@ -80,7 +76,7 @@ func (s *Narwal) Delete(key string) {
 
 func (s *Narwal) Filter(pattern string) ([]engine.Record, error) {
 	regPattern := strings.ReplaceAll(pattern, "$", ".*")
-	log.Printf("pattern %s", regPattern)
+	s.log.Infof("pattern %s", regPattern)
 	exp, err := regexp.Compile(regPattern)
 	if err != nil {
 		return nil, err

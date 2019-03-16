@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/filatovw/ni-storage/engine"
+	"github.com/filatovw/ni-storage/logger"
 	"github.com/pkg/errors"
 )
 
@@ -20,6 +20,7 @@ type WAL struct {
 	rw            io.ReadWriteCloser
 	lock          *sync.Mutex
 	maxRecordSize int64
+	log           logger.Logger
 }
 
 type action int
@@ -38,7 +39,7 @@ type record struct {
 	checksum uint32
 }
 
-func OpenWAL(path string, maxRecordSize int64) (*WAL, error) {
+func OpenWAL(path string, maxRecordSize int64, log logger.Logger) (*WAL, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "path is not absolute")
@@ -56,6 +57,7 @@ func OpenWAL(path string, maxRecordSize int64) (*WAL, error) {
 		rw:            rw,
 		maxRecordSize: maxRecordSize,
 		lock:          &sync.Mutex{},
+		log:           log,
 	}, nil
 }
 
@@ -64,14 +66,8 @@ func (l *WAL) Close() error {
 }
 
 func (l *WAL) Read() (map[string]engine.Record, error) {
-	f, err := os.Open(l.path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
 	result := make(map[string]engine.Record)
-	scan := bufio.NewScanner(f)
+	scan := bufio.NewScanner(l.rw)
 	var e event
 
 	scan.Split(bufio.ScanLines)
@@ -91,7 +87,6 @@ func (l *WAL) Read() (map[string]engine.Record, error) {
 		}
 	}
 
-	log.Printf("read %+v", result)
 	if err := scan.Err(); err != nil {
 		return nil, errors.Wrap(err, "read error")
 	}
