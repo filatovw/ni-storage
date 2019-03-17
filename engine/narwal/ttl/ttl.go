@@ -30,6 +30,7 @@ type Record struct {
 
 // Push record on stack
 func (idx *Index) Push(r Record) {
+	idx.Delete(r.Key)
 	idx.stack = append(idx.stack, r)
 	sort.Slice(idx.stack, func(i, j int) bool { return idx.stack[i].Until.Before(idx.stack[j].Until) })
 }
@@ -51,17 +52,17 @@ func (idx *Index) Delete(k string) {
 // PopAfter returns all the keys with expiration time older than given time
 func (idx *Index) PopAfter(t time.Time) []string {
 	results := []string{}
-	i := 0
-	for _, e := range idx.stack {
+	i := -1
+	for j, e := range idx.stack {
 		if e.Until.Before(t) {
 			results = append(results, e.Key)
-			i++
+			i = j
 		} else {
 			break
 		}
 	}
-	if i > 0 {
-		idx.stack = idx.stack[i:]
+	if i >= 0 {
+		idx.stack = idx.stack[i+1:]
 	}
 	return results
 }

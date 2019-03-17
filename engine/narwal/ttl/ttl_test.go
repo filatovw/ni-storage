@@ -11,6 +11,9 @@ func TestTTLIndexPopAfter(t *testing.T) {
 	ts2 := Record{Until: time.Date(2019, 2, 20, 17, 0, 0, 0, time.UTC), Key: "key2"}
 	ts3 := Record{Until: time.Date(2020, 2, 20, 16, 0, 0, 0, time.UTC), Key: "key3"}
 	ts4 := Record{Until: time.Date(2021, 2, 20, 16, 0, 0, 0, time.UTC), Key: "key4"}
+
+	ts1_2 := ts1
+	ts1_2.Until = ts1_2.Until.AddDate(0, 0, 1)
 	testData := []struct {
 		name          string
 		input         []Record
@@ -47,6 +50,12 @@ func TestTTLIndexPopAfter(t *testing.T) {
 			expectedPop:   []string{"key1", "key2"},
 			expectedIndex: []Record{ts3, ts4},
 		},
+		{
+			name:          "value added twice, should override",
+			input:         []Record{ts1, ts1_2, ts4},
+			expectedPop:   []string{"key1"},
+			expectedIndex: []Record{ts4},
+		},
 	}
 	for _, td := range testData {
 		t.Run(td.name, func(t *testing.T) {
@@ -54,7 +63,7 @@ func TestTTLIndexPopAfter(t *testing.T) {
 			for _, v := range td.input {
 				idx.Push(v)
 			}
-			found := idx.PopAfter(time.Date(2019, 2, 21, 0, 0, 0, 0, time.UTC))
+			found := idx.PopAfter(time.Date(2019, 2, 22, 0, 0, 0, 0, time.UTC))
 			if !reflect.DeepEqual(found, td.expectedPop) {
 				t.Errorf("expected found: %#v, got: %#v", td.expectedPop, found)
 			}
