@@ -29,7 +29,8 @@ const (
 	actionSet    action = 0
 	actionDelete action = 1
 
-	DefaultMaxRecordSize = 2 << 24 // 16 MB
+	defaultMaxRecordSize = 2 << 24 // 16 MB
+	defaultMaxBufferSize = 2 << 26 // 64 MB
 )
 
 type record struct {
@@ -52,6 +53,7 @@ func OpenWAL(path string, maxRecordSize int64, log logger.Logger) (*WAL, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "init storage")
 	}
+	// buf := bufio.NewWriterSize(rw, defaultMaxBufferSize)
 	return &WAL{
 		path:          dataPath,
 		rw:            rw,

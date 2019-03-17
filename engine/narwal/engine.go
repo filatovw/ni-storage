@@ -1,6 +1,7 @@
 package narwal
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -12,66 +13,20 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	defaultTTLCheckPeriod time.Duration = 1
+)
+
+// Narwal engine stores data on a disk and keeps copy of data in memory.
 type Narwal struct {
-	log    logger.Logger
-	lock   *sync.RWMutex
-	data   map[string]engine.Record
-	wal    *WAL
-	ttlIdx *TTLIdx
+	log  logger.Logger
+	lock *sync.RWMutex
+	data map[string]engine.Record
+	wal  *WAL
+	ttl  *TTLIndex
 }
 
-type TTLIdx struct {
-	stack []ttlRecord
-}
-
-type ttlRecord struct {
-	until time.Time
-	key   string
-}
-
-func (idx *TTLIdx) Push(r ttlRecord) {
-	if len(idx.stack) == 0 {
-		idx.stack = append(idx.stack, r)
-		return
-	}
-
-	i := 0
-	for _, e := range idx.stack {
-		if r.until.After(e.until) {
-			i++
-			break
-		}
-	}
-	idx.stack = append(idx.stack[:i], append([]ttlRecord{r}, idx.stack[i:]...)...)
-}
-
-func (idx *TTLIdx) Delete(k string) {
-	i := 0
-	for _, e := range idx.stack {
-		if e.key == k {
-			break
-		}
-		i++
-	}
-	copy(idx.stack[i:], idx.stack[i+1:])
-	idx.stack = idx.stack[:len(idx.stack)-1]
-}
-
-func (idx *TTLIdx) PopAfter(t time.Time) []string {
-	results := []string{}
-	i := 0
-	for _, e := range idx.stack {
-		if e.until.Before(t) {
-			results = append(results, e.key)
-		}
-		i++
-	}
-	if i > 0 {
-		idx.stack = idx.stack[i-1:]
-	}
-	return results
-}
-
+// event holds state container and performed action
 type event struct {
 	Record engine.Record `json:"record"`
 	Action action        `json:"action"`
@@ -81,8 +36,9 @@ func (e *event) Bytes() []byte {
 	return []byte(fmt.Sprintf("%d::%s", e.Action, e.Record))
 }
 
-func New(path string, log logger.Logger) (*Narwal, error) {
-	wal, err := OpenWAL(path, DefaultMaxRecordSize, log)
+// New creates engine object
+func New(ctx context.Context, path string, log logger.Logger) (*Narwal, error) {
+	wal, err := OpenWAL(path, defaultMaxRecordSize, log)
 	if err != nil {
 		return nil, errors.Wrap(err, "open WAL")
 	}
@@ -92,29 +48,33 @@ func New(path string, log logger.Logger) (*Narwal, error) {
 	}
 
 	storage := &Narwal{
-		log:    log,
-		wal:    wal,
-		lock:   &sync.RWMutex{},
-		data:   snapshot,
-		ttlIdx: &TTLIdx{stack: []ttlRecord{}},
+		log:  log,
+		wal:  wal,
+		lock: &sync.RWMutex{},
+		data: snapshot,
+		ttl:  &TTLIndex{stack: []TTLRecord{}},
 	}
 
-	go func() {
-		t := time.NewTicker(time.Second * 3)
-		for {
-			select {
-			case <-t.C:
-				keys := storage.ttlIdx.PopAfter(time.Now())
-				log.Infof("keys: %s", keys)
-				for _, key := range keys {
-					log.Infof("Removed by TTL: %s", key)
-					storage.Delete(key)
-				}
-			}
-		}
-	}()
-
+	go storage.checkTTL(ctx, defaultTTLCheckPeriod)
 	return storage, nil
+}
+
+func (s *Narwal) checkTTL(ctx context.Context, period time.Duration) {
+	t := time.NewTicker(period * time.Second)
+	for {
+		select {
+		case <-t.C:
+			keys := s.ttl.PopAfter(time.Now())
+			s.log.Debugf("keys: %s", keys)
+			for _, key := range keys {
+				s.log.Debugf("Removed by TTL: %s", key)
+				s.Delete(key)
+			}
+		case <-ctx.Done():
+			t.Stop()
+			return
+		}
+	}
 }
 
 func (s *Narwal) Exists(key string) bool {
@@ -148,7 +108,7 @@ func (s *Narwal) Delete(key string) {
 
 func (s *Narwal) Filter(pattern string) ([]engine.Record, error) {
 	regPattern := strings.ReplaceAll(pattern, "$", ".*")
-	s.log.Infof("pattern %s", regPattern)
+	s.log.Debugf("pattern %s", regPattern)
 	exp, err := regexp.Compile(regPattern)
 	if err != nil {
 		return nil, err
@@ -186,21 +146,23 @@ func (s *Narwal) DeleteAll() {
 }
 
 func (s *Narwal) set(record engine.Record) {
+	// if record has already expired ttl
+	if record.ExpirationTime != nil && record.ExpirationTime.Before(time.Now()) {
+		return
+	}
 	if err := s.wal.Write(event{Record: record, Action: actionSet}); err != nil {
 		s.log.Error(err)
 	}
 	if record.ExpirationTime != nil {
-		s.ttlIdx.Push(ttlRecord{key: record.Key, until: *record.ExpirationTime})
+		s.ttl.Push(TTLRecord{key: record.Key, until: *record.ExpirationTime})
 	}
 	s.data[record.Key] = record
-	s.log.Infof("data %v", s.data)
-	s.log.Infof("ttl %v", s.ttlIdx)
 }
 
 func (s *Narwal) delete(key string) {
 	if err := s.wal.Write(event{Record: engine.Record{Key: key}, Action: actionDelete}); err != nil {
 		s.log.Error(err)
 	}
-	s.ttlIdx.Delete(key)
+	s.ttl.Delete(key)
 	delete(s.data, key)
 }

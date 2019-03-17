@@ -13,11 +13,11 @@ I chose Golang because:
 
 ## TODO:
 
-[ ] WAL append
+[x] WAL append
 [ ] WAL recover -> snapshot recover
 [ ] snapshot writing
 [ ] snapshot reading
-[ ] ttl
+[x] ttl
 [ ] zap logger middleware
 [ ] tests for narwal storage
 [ ] benchmarks
