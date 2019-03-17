@@ -5,8 +5,8 @@ PHONY:docker-clean
 docker-clean:
 	docker system prune -f --volumes
 
-PHONY:logs
-logs:
+PHONY:docker-logs
+docker-logs:
 	docker-compose logs -f api
 
 PHONY:docker-start
@@ -29,7 +29,7 @@ clean:
 
 PHONY:build
 build:
-	go build -o ./bin/$(APP_API) ./cmd/api
+	go build -o ./bin/$(APP_API) ./cmd/$(APP_API)
 
 PHONY:start
 start:
@@ -42,3 +42,8 @@ stop:
 PHONY:test
 test:
 	go test -v -race -bench=. ./...
+
+PHONY:release
+release:
+	docker build -f Dockerfile.release -t release-build:latest . && \
+		docker run -it -v $(PWD)/bin/:/data/ release-build:latest cp -r /release/ /data

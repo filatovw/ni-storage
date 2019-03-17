@@ -3,9 +3,10 @@ services:
   api:
     image: filatovw/ni-storage
     ports:
-      - 8555:8080
+      - 8555:8555
     environment:
       HTTP_HOST: "0.0.0.0"
-      HTTP_PORT: "8080"
+      HTTP_PORT: "8555"
     volumes:
       - ./data:/var/lib/data
+    command: /usr/bin/api -debug -data-dir /var/lib/data

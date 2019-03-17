@@ -1,0 +1,10 @@
+FROM golang:1.12 as builder
+COPY . /ni-storage
+WORKDIR /ni-storage
+RUN go mod download
+RUN GOOS=darwin GOARCH=amd64 go build -o /release/ni-storage_darwin_amd64 ./cmd/api
+RUN GOOS=linux GOARCH=amd64 go build -o /release/ni-storage_linux_amd64 ./cmd/api
+
+FROM busybox:latest
+WORKDIR /
+COPY --from=builder /release/* /release/
