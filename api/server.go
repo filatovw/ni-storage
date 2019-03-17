@@ -19,8 +19,7 @@ func New(ctx context.Context, log logger.Logger, storage engine.Storage, cfg con
 	mux := chi.NewRouter()
 	mux.Use(render.SetContentType(render.ContentTypeJSON))
 	mux.Use(middleware.RequestID)
-	// TODO: replace with external logger
-	mux.Use(middleware.Logger)
+	mux.Use(LevelLogger(log))
 
 	mux.Mount("/debug", middleware.Profiler())
 

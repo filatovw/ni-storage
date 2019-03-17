@@ -23,21 +23,13 @@ PHONY:docker-build
 docker-build:
 	docker build --rm --tag filatovw/$(APP_API) .
 
-PHONY: clean
-clean:
-	rm bin/$(APP_API)
-
 PHONY:build
 build:
 	go build -o ./bin/$(APP_API) ./cmd/api
 
 PHONY:start
 start:
-	./scripts/start.sh
-
-PHONY:stop
-stop:
-	./scripts/stop.sh
+	$(CURDIR)/bin/$(APP_API)
 
 PHONY:test
 test:
