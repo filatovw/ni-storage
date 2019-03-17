@@ -16,6 +16,7 @@ import (
 	"github.com/filatovw/ni-storage/logger"
 )
 
+// HealthHandler is used for simple health-check/echo requests
 func HealthHandler(log logger.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		render.PlainText(w, r, http.StatusText(http.StatusOK))

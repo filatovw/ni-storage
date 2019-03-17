@@ -66,7 +66,7 @@ func (c *Config) loadFromCLI() {
 	)
 	flag.StringVar(&host, "host", "", "api-server host (default: 0.0.0.0)")
 	flag.IntVar(&port, "port", 0, "api-server port (default: 8500)")
-	flag.StringVar(&dataDir, "data-dir", "./narwal", "path to folder with data")
+	flag.StringVar(&dataDir, "data-dir", "./data", "path to folder with data")
 	flag.BoolVar(&debug, "debug", false, "debug mode with verbose logging")
 	flag.Parse()
 

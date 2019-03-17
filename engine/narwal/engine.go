@@ -2,7 +2,6 @@ package narwal
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -15,7 +14,7 @@ import (
 )
 
 var (
-	defaultTTLCheckPeriod time.Duration = 1
+	defaultTTLCheckPeriod = 2 * time.Second
 )
 
 // Narwal engine stores data on a disk and keeps copy of data in memory.
@@ -33,13 +32,9 @@ type event struct {
 	Action action        `json:"action"`
 }
 
-func (e *event) Bytes() []byte {
-	return []byte(fmt.Sprintf("%d::%s", e.Action, e.Record))
-}
-
 // New creates engine object
 func New(ctx context.Context, path string, log logger.Logger) (*Narwal, error) {
-	wal, err := OpenWAL(path, defaultMaxRecordSize, log)
+	wal, err := OpenWAL(log, path, defaultMaxRecordSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "open WAL")
 	}
@@ -57,22 +52,41 @@ func New(ctx context.Context, path string, log logger.Logger) (*Narwal, error) {
 		data: snapshot,
 		ttl:  &ttlIndex,
 	}
+	storage.deleteExpired(time.Now())
 
-	go storage.checkTTL(ctx, defaultTTLCheckPeriod)
+	go storage.flushWAL(ctx)
+	go storage.checkExpired(ctx, defaultTTLCheckPeriod)
 	return storage, nil
 }
 
-func (s *Narwal) checkTTL(ctx context.Context, period time.Duration) {
-	t := time.NewTicker(period * time.Second)
+func (s *Narwal) flushWAL(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			if err := s.wal.Close(); err != nil {
+				s.log.Errorf("failed to close WAL, possible data corruption: %s", err)
+			}
+		}
+	}
+}
+
+// deleteExpired delete all keys that are expired by the time
+func (s *Narwal) deleteExpired(t time.Time) {
+	keys := s.ttl.PopAfter(t)
+	s.log.Debugf("keys: %s", keys)
+	for _, key := range keys {
+		s.log.Debugf("Removed expired: %s", key)
+		s.Delete(key)
+	}
+}
+
+// checkExpired check if any records have expired time
+func (s *Narwal) checkExpired(ctx context.Context, period time.Duration) {
+	t := time.NewTicker(period)
 	for {
 		select {
 		case <-t.C:
-			keys := s.ttl.PopAfter(time.Now())
-			s.log.Debugf("keys: %s", keys)
-			for _, key := range keys {
-				s.log.Debugf("Removed expired: %s", key)
-				s.Delete(key)
-			}
+			s.deleteExpired(time.Now())
 		case <-ctx.Done():
 			t.Stop()
 			return
@@ -149,7 +163,7 @@ func (s *Narwal) DeleteAll() {
 }
 
 func (s *Narwal) set(record engine.Record) {
-	// if record has already expired
+	//  check if record has already expired
 	if record.ExpirationTime != nil && record.ExpirationTime.Before(time.Now()) {
 		return
 	}

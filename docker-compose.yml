@@ -7,3 +7,5 @@ services:
     environment:
       HTTP_HOST: "0.0.0.0"
       HTTP_PORT: "8080"
+    volumes:
+      - ./data:/var/lib/data

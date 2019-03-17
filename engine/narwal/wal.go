@@ -15,14 +15,6 @@ import (
 
 // Storage specific operations
 
-type WAL struct {
-	path          string
-	rw            io.ReadWriteCloser
-	lock          *sync.Mutex
-	maxRecordSize int64
-	log           logger.Logger
-}
-
 type action int
 
 const (
@@ -30,8 +22,16 @@ const (
 	actionDelete action = 1
 
 	defaultMaxRecordSize = 2 << 24 // 16 MB
-	defaultMaxBufferSize = 2 << 26 // 64 MB
 )
+
+// WAL log-file in append mode
+type WAL struct {
+	maxRecordSize int
+	path          string
+	rw            io.ReadWriteCloser
+	lock          *sync.Mutex
+	log           logger.Logger
+}
 
 type record struct {
 	action   action
@@ -40,7 +40,8 @@ type record struct {
 	checksum uint32
 }
 
-func OpenWAL(path string, maxRecordSize int64, log logger.Logger) (*WAL, error) {
+// OpenWAL open log or create it if it doesn't exist
+func OpenWAL(log logger.Logger, path string, maxRecordSize int) (*WAL, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "path is not absolute")
@@ -48,24 +49,28 @@ func OpenWAL(path string, maxRecordSize int64, log logger.Logger) (*WAL, error) 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, errors.Wrap(err, "create directory")
 	}
-	dataPath := filepath.Join(path, "data.wal")
+	dataPath := filepath.Join(path, "narwal.wal")
 	rw, err := os.OpenFile(dataPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, errors.Wrap(err, "init storage")
 	}
 	return &WAL{
+		maxRecordSize: maxRecordSize,
 		path:          dataPath,
 		rw:            rw,
-		maxRecordSize: maxRecordSize,
 		lock:          &sync.Mutex{},
 		log:           log,
 	}, nil
 }
 
+// Close log
 func (l *WAL) Close() error {
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	return l.rw.Close()
 }
 
+// Read snapshot from log-file
 func (l *WAL) Read() (map[string]engine.Record, error) {
 	result := make(map[string]engine.Record)
 	scan := bufio.NewScanner(l.rw)
@@ -94,19 +99,23 @@ func (l *WAL) Read() (map[string]engine.Record, error) {
 	return result, nil
 }
 
+// Write event into log-file
 func (l *WAL) Write(e event) error {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	if len(e.Record.Value) > l.maxRecordSize {
+		return errors.New("entity is too large")
+	}
+
 	r, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
+
 	r = append(r, []byte("\n")...)
 	if _, err = l.rw.Write(r); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (l WAL) Compact() error {
 	return nil
 }
