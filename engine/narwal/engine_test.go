@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func setupEngine(t *testing.T) (*Narwal, string) {
+func SetupEngineHelper(t *testing.T) (*Narwal, string) {
 	t.Helper()
 	tmpdir, err := ioutil.TempDir("", "engine_test")
 	if err != nil {
@@ -32,7 +32,7 @@ func setupEngine(t *testing.T) (*Narwal, string) {
 }
 
 func TestEngineSet(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	record := engine.Record{Key: "key1", Value: "value1"}
@@ -49,7 +49,7 @@ func TestEngineSet(t *testing.T) {
 }
 
 func TestEngineSetExpiredTTL(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	ts := time.Now()
@@ -63,7 +63,7 @@ func TestEngineSetExpiredTTL(t *testing.T) {
 }
 
 func TestEngineSetExpiration(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	ts := time.Now()
@@ -77,7 +77,7 @@ func TestEngineSetExpiration(t *testing.T) {
 }
 
 func TestEngineGet(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	record := engine.Record{Key: "key1", Value: "value1"}
@@ -92,7 +92,7 @@ func TestEngineGet(t *testing.T) {
 }
 
 func TestEngineDelete(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	record := engine.Record{Key: "key1", Value: "value1"}
@@ -105,7 +105,7 @@ func TestEngineDelete(t *testing.T) {
 }
 
 func TestEngineExists(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	record := engine.Record{Key: "key1", Value: "value1"}
@@ -117,7 +117,7 @@ func TestEngineExists(t *testing.T) {
 }
 
 func TestEngineDeleteAll(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	records := []engine.Record{
@@ -139,7 +139,7 @@ func TestEngineDeleteAll(t *testing.T) {
 }
 
 func TestEngineGetAll(t *testing.T) {
-	s, tmpdir := setupEngine(t)
+	s, tmpdir := SetupEngineHelper(t)
 	defer os.RemoveAll(tmpdir)
 
 	records := map[string]engine.Record{

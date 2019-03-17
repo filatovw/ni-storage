@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi"
 
-	"github.com/filatovw/ni-storage/config"
 	"github.com/filatovw/ni-storage/engine"
 	"github.com/filatovw/ni-storage/logger"
 )
@@ -24,7 +23,6 @@ func HealthHandler(log logger.Logger) http.Handler {
 
 type Server struct {
 	storage engine.Storage
-	config  config.Config
 	log     logger.Logger
 }
 
@@ -33,7 +31,8 @@ func (s *Server) GetHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	item, ok := s.storage.Get(id)
 	if !ok {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, http.StatusText(http.StatusNotFound))
 		return
 	}
 	render.JSON(w, r, item.Value)
@@ -52,7 +51,8 @@ func (s *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	if pattern != "" {
 		records, err = s.storage.Filter(pattern)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, http.StatusText(http.StatusInternalServerError))
 			return
 		}
 	} else {
@@ -69,7 +69,8 @@ func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
 	if expireInParam != "" {
 		expireIn, err := strconv.Atoi(expireInParam)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, http.StatusText(http.StatusBadRequest))
 			return
 		}
 		ts := time.Now().Add(time.Duration(expireIn) * time.Second)
@@ -78,15 +79,15 @@ func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		http.Error(
-			w,
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest)
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, http.StatusText(http.StatusBadRequest))
 		return
 	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, http.StatusText(http.StatusBadRequest))
+		return
 	}
 
 	item.Key = id
@@ -101,7 +102,8 @@ func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) CheckHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if ok := s.storage.Exists(id); !ok {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, http.StatusText(http.StatusNotFound))
 		return
 	}
 	render.JSON(w, r, true)
@@ -111,13 +113,13 @@ func (s *Server) CheckHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	s.storage.Delete(id)
-	w.WriteHeader(http.StatusAccepted)
-	render.JSON(w, r, http.StatusText(http.StatusOK))
+	render.Status(r, http.StatusAccepted)
+	render.JSON(w, r, http.StatusText(http.StatusAccepted))
 }
 
 // DeleteAllHandler delete all values (DELETE /keys)
 func (s *Server) DeleteAllHandler(w http.ResponseWriter, r *http.Request) {
 	s.storage.DeleteAll()
-	w.WriteHeader(http.StatusAccepted)
-	render.JSON(w, r, http.StatusText(http.StatusOK))
+	render.Status(r, http.StatusAccepted)
+	render.JSON(w, r, http.StatusText(http.StatusAccepted))
 }

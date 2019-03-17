@@ -27,7 +27,7 @@ func New(ctx context.Context, log logger.Logger, storage engine.Storage, cfg con
 	mux.Handle("/health", HealthHandler(log))
 	mux.Handle("/metrics", promhttp.Handler())
 
-	server := Server{storage: storage, config: cfg, log: log}
+	server := Server{storage: storage, log: log}
 
 	mux.Route("/keys", func(mux chi.Router) {
 		mux.Get("/", server.GetAllHandler)
