@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	"net/http"
@@ -14,7 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func New(log logger.Logger, storage engine.Storage, cfg config.Config) *http.Server {
+func New(ctx context.Context, log logger.Logger, storage engine.Storage, cfg config.Config) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(render.SetContentType(render.ContentTypeJSON))
 	mux.Use(middleware.RequestID)
@@ -33,7 +34,7 @@ func New(log logger.Logger, storage engine.Storage, cfg config.Config) *http.Ser
 		mux.Delete("/", server.DeleteAllHandler)
 		mux.Route("/{id}", func(mux chi.Router) {
 			mux.Get("/", server.GetHandler)
-			mux.Put("/", server.SetHandler)
+			mux.Put("/", server.SetHandler) // setting {id} in url seems more logical to me
 			mux.Head("/", server.CheckHandler)
 			mux.Delete("/", server.DeleteHandler)
 		})

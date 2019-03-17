@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/filatovw/ni-storage/engine"
+	"github.com/filatovw/ni-storage/engine/narwal/ttl"
 	"github.com/filatovw/ni-storage/logger"
 	"github.com/pkg/errors"
 )
@@ -23,7 +24,7 @@ type Narwal struct {
 	lock *sync.RWMutex
 	data map[string]engine.Record
 	wal  *WAL
-	ttl  *TTLIndex
+	ttl  *ttl.Index
 }
 
 // event holds state container and performed action
@@ -47,12 +48,14 @@ func New(ctx context.Context, path string, log logger.Logger) (*Narwal, error) {
 		return nil, err
 	}
 
+	ttlIndex := ttl.NewIndex()
+
 	storage := &Narwal{
 		log:  log,
 		wal:  wal,
 		lock: &sync.RWMutex{},
 		data: snapshot,
-		ttl:  &TTLIndex{stack: []TTLRecord{}},
+		ttl:  &ttlIndex,
 	}
 
 	go storage.checkTTL(ctx, defaultTTLCheckPeriod)
@@ -67,7 +70,7 @@ func (s *Narwal) checkTTL(ctx context.Context, period time.Duration) {
 			keys := s.ttl.PopAfter(time.Now())
 			s.log.Debugf("keys: %s", keys)
 			for _, key := range keys {
-				s.log.Debugf("Removed by TTL: %s", key)
+				s.log.Debugf("Removed expired: %s", key)
 				s.Delete(key)
 			}
 		case <-ctx.Done():
@@ -146,7 +149,7 @@ func (s *Narwal) DeleteAll() {
 }
 
 func (s *Narwal) set(record engine.Record) {
-	// if record has already expired ttl
+	// if record has already expired
 	if record.ExpirationTime != nil && record.ExpirationTime.Before(time.Now()) {
 		return
 	}
@@ -154,7 +157,7 @@ func (s *Narwal) set(record engine.Record) {
 		s.log.Error(err)
 	}
 	if record.ExpirationTime != nil {
-		s.ttl.Push(TTLRecord{key: record.Key, until: *record.ExpirationTime})
+		s.ttl.Push(ttl.Record{Key: record.Key, Until: *record.ExpirationTime})
 	}
 	s.data[record.Key] = record
 }

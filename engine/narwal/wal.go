@@ -53,7 +53,6 @@ func OpenWAL(path string, maxRecordSize int64, log logger.Logger) (*WAL, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "init storage")
 	}
-	// buf := bufio.NewWriterSize(rw, defaultMaxBufferSize)
 	return &WAL{
 		path:          dataPath,
 		rw:            rw,

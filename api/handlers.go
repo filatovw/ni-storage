@@ -72,7 +72,7 @@ func (s *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, items)
 }
 
-// SetHandler set a value (PUT /keys), set an expiry time when adding a value (PUT /keys?expire_in=60)
+// SetHandler set a value (PUT /keys/{id}), set an expiry time when adding a value (PUT /keys?expire_in=60)
 func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
 	expireInParam := r.URL.Query().Get("expire_in")
 	item := engine.Record{}
