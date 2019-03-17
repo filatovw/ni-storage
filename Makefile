@@ -29,7 +29,7 @@ clean:
 
 PHONY:build
 build:
-	go build -o ./bin/$(APP_API) ./cmd/$(APP_API)
+	go build -o ./bin/$(APP_API) ./cmd/api
 
 PHONY:start
 start:
