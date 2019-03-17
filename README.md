@@ -20,7 +20,8 @@ I chose Golang because:
 `/config` object that reads configurations from environment variables and command line
 `/data` place for a data storage
 `/docs` description of a challenge
-`/engine` engine interface and its implementation
+`/engine` engine interface
+`/engine/narwal` engine implementation
 `/logger` simple interface that is used for isolation from a particular logger
 
 
