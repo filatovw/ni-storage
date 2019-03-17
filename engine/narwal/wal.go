@@ -33,13 +33,6 @@ type WAL struct {
 	log           logger.Logger
 }
 
-type record struct {
-	action   action
-	len      int32
-	data     []byte
-	checksum uint32
-}
-
 // OpenWAL open log or create it if it doesn't exist
 func OpenWAL(log logger.Logger, path string, maxRecordSize int) (*WAL, error) {
 	path, err := filepath.Abs(path)

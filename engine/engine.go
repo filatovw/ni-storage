@@ -20,13 +20,13 @@ type Storage interface {
 	// Get find record by key
 	Get(string) (Record, bool)
 	// GetAll get all records from storage
-	GetAll() ([]Record, error)
+	GetAll() map[string]Record
 	// Filter get all records passed filtering by passed pattern where "$"" means "any number of symbols"
-	Filter(string) ([]Record, error)
+	Filter(string) (map[string]Record, error)
 	// Set save record in a storage
 	Set(Record)
 	// Delete remove record with defined key
 	Delete(string)
-	// DeleteALl remove all records
+	// DeleteAll remove all records
 	DeleteAll()
 }

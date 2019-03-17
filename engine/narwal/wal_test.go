@@ -81,7 +81,7 @@ func TestWAL(t *testing.T) {
 }
 
 func TestWALWrongPermissions(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "wal_test")
+	tmpdir, err := ioutil.TempDir("", "wal_perm_test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestWALWrongPermissions(t *testing.T) {
 }
 
 func TestWALValueTooLarge(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "wal_test")
+	tmpdir, err := ioutil.TempDir("", "wal_too_large_test")
 	if err != nil {
 		log.Fatal(err)
 	}

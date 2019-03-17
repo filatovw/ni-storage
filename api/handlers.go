@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -29,11 +28,6 @@ type Server struct {
 	log     logger.Logger
 }
 
-func (s *Server) write(w http.ResponseWriter, body []byte, status int) {
-	w.WriteHeader(status)
-	fmt.Fprint(w, body)
-}
-
 // GetHandler get a value (GET /keys/{id})
 func (s *Server) GetHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -50,27 +44,22 @@ func (s *Server) GetHandler(w http.ResponseWriter, r *http.Request) {
 // (the $ symbol should expand to match any number of characters, e.g: wod, word, world etc.)
 func (s *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		records []engine.Record
+		records map[string]engine.Record
 		err     error
 	)
 
 	pattern := r.URL.Query().Get("filter")
 	if pattern != "" {
 		records, err = s.storage.Filter(pattern)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	} else {
-		records, err = s.storage.GetAll()
-	}
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		records = s.storage.GetAll()
 	}
 
-	items := make([]string, len(records))
-	for i, v := range records {
-		items[i] = v.Value
-	}
-
-	render.JSON(w, r, items)
+	render.JSON(w, r, records)
 }
 
 // SetHandler set a value (PUT /keys/{id}), set an expiry time when adding a value (PUT /keys?expire_in=60)

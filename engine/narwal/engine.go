@@ -54,19 +54,16 @@ func New(ctx context.Context, path string, log logger.Logger) (*Narwal, error) {
 	}
 	storage.deleteExpired(time.Now())
 
-	go storage.flushWAL(ctx)
+	go storage.closeWAL(ctx)
 	go storage.checkExpired(ctx, defaultTTLCheckPeriod)
 	return storage, nil
 }
 
-func (s *Narwal) flushWAL(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			if err := s.wal.Close(); err != nil {
-				s.log.Errorf("failed to close WAL, possible data corruption: %s", err)
-			}
-		}
+// closeWAL closes log-file
+func (s *Narwal) closeWAL(ctx context.Context) {
+	<-ctx.Done()
+	if err := s.wal.Close(); err != nil {
+		s.log.Errorf("failed to close WAL, possible data corruption: %s", err)
 	}
 }
 
@@ -94,6 +91,7 @@ func (s *Narwal) checkExpired(ctx context.Context, period time.Duration) {
 	}
 }
 
+// Exists check if key exists in a storage
 func (s *Narwal) Exists(key string) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -101,6 +99,7 @@ func (s *Narwal) Exists(key string) bool {
 	return ok
 }
 
+// Get find record by key
 func (s *Narwal) Get(key string) (engine.Record, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -111,19 +110,22 @@ func (s *Narwal) Get(key string) (engine.Record, bool) {
 	return record, true
 }
 
+// Set save record in a storage
 func (s *Narwal) Set(record engine.Record) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.set(record)
 }
 
+// Delete remove record with defined key
 func (s *Narwal) Delete(key string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.delete(key)
 }
 
-func (s *Narwal) Filter(pattern string) ([]engine.Record, error) {
+// Filter get all records passed filtering by pattern where "$"" means "any number of symbols"
+func (s *Narwal) Filter(pattern string) (map[string]engine.Record, error) {
 	regPattern := strings.ReplaceAll(pattern, "$", ".*")
 	s.log.Debugf("pattern %s", regPattern)
 	exp, err := regexp.Compile(regPattern)
@@ -134,26 +136,23 @@ func (s *Narwal) Filter(pattern string) ([]engine.Record, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	results := []engine.Record{}
+	results := make(map[string]engine.Record)
 	for _, v := range s.data {
 		if exp.MatchString(v.Value) {
-			results = append(results, v)
+			results[v.Key] = v
 		}
 	}
 	return results, nil
 }
 
-func (s *Narwal) GetAll() ([]engine.Record, error) {
+// GetAll get all records from storage
+func (s *Narwal) GetAll() map[string]engine.Record {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-
-	results := []engine.Record{}
-	for _, v := range s.data {
-		results = append(results, v)
-	}
-	return results, nil
+	return s.data
 }
 
+// DeleteAll remove all records
 func (s *Narwal) DeleteAll() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -162,6 +161,7 @@ func (s *Narwal) DeleteAll() {
 	}
 }
 
+// set save record in a storage
 func (s *Narwal) set(record engine.Record) {
 	//  check if record has already expired
 	if record.ExpirationTime != nil && record.ExpirationTime.Before(time.Now()) {
@@ -176,6 +176,7 @@ func (s *Narwal) set(record engine.Record) {
 	s.data[record.Key] = record
 }
 
+// delete remove value from a storage by key
 func (s *Narwal) delete(key string) {
 	if err := s.wal.Write(event{Record: engine.Record{Key: key}, Action: actionDelete}); err != nil {
 		s.log.Error(err)
