@@ -59,7 +59,14 @@ func (s *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 		records = s.storage.GetAll()
 	}
 
-	render.JSON(w, r, records)
+	keys := make([]string, len(records))
+	i := 0
+	for k := range records {
+		keys[i] = k
+		i++
+	}
+
+	render.JSON(w, r, keys)
 }
 
 // SetHandler set a value (PUT /keys/{id}), set an expiry time when adding a value (PUT /keys?expire_in=60)

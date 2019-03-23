@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -259,12 +260,15 @@ func TestGetAllHandler(t *testing.T) {
 			status, http.StatusAccepted)
 	}
 
-	var v map[string]engine.Record
+	var v []string
 	json.Unmarshal(rr.Body.Bytes(), &v)
-	expected := map[string]engine.Record{
-		record1.Key: record1,
-		record2.Key: record2,
+	expected := []string{
+		record1.Key,
+		record2.Key,
 	}
+
+	sort.Slice(v, func(i, j int) bool { return v[i] < v[j] })
+
 	if !reflect.DeepEqual(v, expected) {
 		t.Errorf("handler returned unexpected body: got %#v want %#v",
 			v, expected)
