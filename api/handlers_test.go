@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/filatovw/ni-storage/engine"
 	"github.com/go-chi/chi"
@@ -77,6 +79,42 @@ func TestSetHandler(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	handler := http.HandlerFunc(server.SetHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusCreated {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	expected := "\"OK\"\n"
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %#v want %#v",
+			rr.Body.String(), expected)
+	}
+}
+
+func TestSetMultipleHandler(t *testing.T) {
+	server := setupServer(t)
+
+	td1 := time.Duration(59)
+	body, err := json.Marshal(
+		map[string]record{
+			"key1": record{Value: "value1", ExpireIn: &td1},
+			"key2": record{Value: "value2"},
+		},
+	)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	rb := bytes.NewReader(body)
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest("PUT", "/keys", rb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := http.HandlerFunc(server.SetMultipleHandler)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusCreated {
@@ -261,7 +299,9 @@ func TestGetAllHandler(t *testing.T) {
 	}
 
 	var v []string
-	json.Unmarshal(rr.Body.Bytes(), &v)
+	if err := json.Unmarshal(rr.Body.Bytes(), &v); err != nil {
+		t.Errorf("error on unmarshalling: %s", err)
+	}
 	expected := []string{
 		record1.Key,
 		record2.Key,

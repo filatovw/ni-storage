@@ -31,6 +31,7 @@ func New(ctx context.Context, log logger.Logger, storage engine.Storage, cfg con
 	mux.Route("/keys", func(mux chi.Router) {
 		mux.Get("/", server.GetAllHandler)
 		mux.Delete("/", server.DeleteAllHandler)
+		mux.Put("/", server.SetMultipleHandler)
 		mux.Route("/{id}", func(mux chi.Router) {
 			mux.Get("/", server.GetHandler)
 			mux.Put("/", server.SetHandler) // setting {id} in url seems more logical to me

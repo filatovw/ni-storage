@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -102,6 +103,44 @@ func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
 	s.storage.Set(item)
 	w.WriteHeader(http.StatusCreated)
 
+	render.JSON(w, r, http.StatusText(http.StatusOK))
+}
+
+type record struct {
+	Value    string         `json:"value"`
+	ExpireIn *time.Duration `json:"expire_in,omitempty"`
+}
+
+// SetMultipleHandler set multiple values at once (PUT /keys)
+func (s *Server) SetMultipleHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	var req map[string]record
+	if err := json.Unmarshal(body, &req); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	tsNow := time.Now()
+	for k, v := range req {
+		item := engine.Record{
+			Key:   k,
+			Value: v.Value,
+		}
+
+		if v.ExpireIn != nil {
+			ts := tsNow.Add(*v.ExpireIn * time.Second)
+			item.ExpirationTime = &ts
+		}
+		s.storage.Set(item)
+	}
+	w.WriteHeader(http.StatusCreated)
 	render.JSON(w, r, http.StatusText(http.StatusOK))
 }
 

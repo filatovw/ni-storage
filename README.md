@@ -123,6 +123,16 @@ Create item with expiration time:
     curl -X PUT "0.0.0.0:8555/keys/bear?expire_in=25" -H "content-type:application/json" -d "polar"
     "OK"
 
+Create miltiple items at once:
+
+    curl -X PUT "0.0.0.0:8555/keys" -H "content-type:application/json" -d '{"name":{"value": "wolf"}}'
+    "OK"
+
+Create multiple items at once, each may have expiration:
+
+    curl -X PUT "0.0.0.0:8555/keys" -H "content-type:application/json" -d '{"animal":{"value": "fox", "expire_in": 67 }}'
+    "OK"
+
 Check item:
 
     curl --head "0.0.0.0:8555/keys/time" -H "content-type:application/json"
@@ -139,7 +149,7 @@ Get item:
 Get all items:
 
     curl -X GET "0.0.0.0:8555/keys" -H "content-type:application/json"
-    {"bear":{"expiration_time":"2019-03-17T23:43:00.394580122Z","value":"polar","key":"bear"},"time":{"value":"to die","key":"time"}}
+    ["time","bear"]
 
 Delete item:
 
